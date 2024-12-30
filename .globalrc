@@ -1,0 +1,15 @@
+default:\
+	:tc=native:
+native:\
+	:tc=gtags:
+#---------------------------------------------------------------------
+# Configuration for gtags(1)
+# See gtags(1).
+#---------------------------------------------------------------------
+common:\
+	:skip=*.bak,*~,#*#,*.swp,*.tmp,*_flymake.*,*_flymake,*.o,*.a,*.so,*.lo,*.zip,*.gz,*.bz2,*.xz,*.lzh,*.Z,*.tgz,*.min.js,*min.css,*.xml,*.pem,*.edl,*.lds,*.sql:
+gtags:\
+	:tc=common:\
+	:tc=builtin-parser:
+builtin-parser:\
+	:langmap=cpp\:.c.h.hh.cpp.cxx.hxx.hpp.C.H:
