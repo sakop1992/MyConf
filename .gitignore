@@ -1,8 +1,11 @@
 *.elc
 .emacs.d/.cache/*
-.emacs,d/auto-save-list/*
+Ubuntu/.emacs.d/.cache/*
+.emacs.d/auto-save-list/*
+Ubuntu/.emacs.d/auto-save-list/*
 *~*
 *#*
 *.png
 *.svg
-.emacs.d/elpa/
+.emacs.d/elpa/*
+Ubuntu/.emacs.d/elpa/*
