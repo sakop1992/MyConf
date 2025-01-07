@@ -653,40 +653,16 @@ EXTRA-ARGS is a string containing additional arguments for grep."
     (grep command)
     ;; Switch to the *grep* buffer after running the command
     (switch-to-buffer-other-window "*grep*")
-    (highlight-phrase pattern-to-search 'hi-yellow)))
-
-(defun grep-Kopzon--get-pattern (default-pattern)
-  "Get the search pattern interactively, defaulting to DEFAULT-PATTERN.
-If the user presses Enter without typing anything, DEFAULT-PATTERN is returned."
-  (read-from-minibuffer
-   (if default-pattern
-       (format "Enter pattern to search (default: %s): " default-pattern)
-     "Enter pattern to search: ")
-   nil nil nil nil default-pattern))
-
-(defun grep-Kopzon-rn-at-point ()
-  "Run grep --color -rn for a user-specified or default word at point in the project root directory."
-  (interactive)
-  (let* ((default-pattern (thing-at-point 'word t))
-         (pattern-to-search (grep-Kopzon--get-pattern default-pattern))
-         (search-folder (or (project-root (project-current))
-                            (error "Project root not found"))))
-    (grep-Kopzon--run search-folder pattern-to-search)))
-
-(defun grep-Kopzon-rni-at-point ()
-  "Run grep --color -rni for a user-specified or default word at point in the project root directory."
-  (interactive)
-  (let* ((default-pattern (thing-at-point 'word t))
-         (pattern-to-search (grep-Kopzon--get-pattern default-pattern))
-         (search-folder (or (project-root (project-current))
-                            (error "Project root not found"))))
-    (grep-Kopzon--run search-folder pattern-to-search "-i")))
+    ;; Ensure pattern-to-search is a string before highlighting it
+    (highlight-phrase (if (stringp pattern-to-search)
+                          pattern-to-search
+                        (format "%s" pattern-to-search)) 'hi-yellow)))
 
 (defun grep-Kopzon-rn (pattern-to-search search-folder)
   "Run grep --color -rn <pattern-to-search> <search-folder>."
   (interactive 
    (list 
-    (read-from-minibuffer "Pattern to search: " nil nil t)
+    (read-from-minibuffer "Pattern to search: " (thing-at-point 'word t) nil t)  ;; Use word at point as default
     (read-directory-name "Directory to search in: " nil nil t)))
   (grep-Kopzon--run search-folder pattern-to-search))
 
@@ -694,7 +670,7 @@ If the user presses Enter without typing anything, DEFAULT-PATTERN is returned."
   "Run grep --color -rni <pattern-to-search> <search-folder> (case-insensitive)."
   (interactive 
    (list 
-    (read-from-minibuffer "Pattern to search: " nil nil t)
+    (read-from-minibuffer "Pattern to search: " (thing-at-point 'word t) nil t)  ;; Use word at point as default
     (read-directory-name "Directory to search in: " nil nil t)))
   (grep-Kopzon--run search-folder pattern-to-search "-i"))
 
@@ -702,11 +678,12 @@ If the user presses Enter without typing anything, DEFAULT-PATTERN is returned."
   "Run grep --color -rni --include=<file-name-pattern> -e <pattern-to-search> <search-folder>."
   (interactive 
    (list 
-    (read-from-minibuffer "Pattern to search: " nil nil t)
+    (read-from-minibuffer "Pattern to search: " (thing-at-point 'word t) nil t)  ;; Use word at point as default
     (read-directory-name "Directory to search in: " nil nil t)
     (read-from-minibuffer "File name pattern to search in: " nil nil t)))
   (grep-Kopzon--run search-folder pattern-to-search 
                     (format "-i --include='*%s*'" file-name-pattern)))
+
 
 ;; Key binding for convenience
 (global-set-key (kbd "C-x g") 'grep-Kopzon-rni)
@@ -910,9 +887,9 @@ If the user presses Enter without typing anything, DEFAULT-PATTERN is returned."
  "g" 'goto-line
  "<up>" 'move-text-up
  "<down>" 'move-text-down
- "M-g" 'grep-Kopzon-rn-at-point
- "M-i" 'grep-Kopzon-rni-at-point
- "M-d" 'grep-Kopzon-rn
+ "M-g" 'grep-Kopzon-rn
+ "M-i" 'grep-Kopzon-rni
+ "M-s" 'grep-Kopzon-rni-include
  "<right>" (kbd "C-u 4 C-x <tab>")
  "<left>" (kbd "C-u -4 C-x <tab>"))
 ;g-map end
