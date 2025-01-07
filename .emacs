@@ -659,11 +659,17 @@ EXTRA-ARGS is a string containing additional arguments for grep."
                           pattern-to-search
                         (format "%s" pattern-to-search)) 'hi-yellow)))
 
+(defun grep-Kopzon--get-full-pattern-at-point ()
+  "Get the full pattern at point, including underscores and other separators."
+  (let ((bounds (bounds-of-thing-at-point 'symbol)))
+    (when bounds
+      (buffer-substring-no-properties (car bounds) (cdr bounds)))))
+
 (defun grep-Kopzon-rn (pattern-to-search search-folder)
   "Run grep --color -rn <pattern-to-search> <search-folder>."
   (interactive 
    (list 
-    (read-from-minibuffer "Pattern to search: " (thing-at-point 'word t) nil t)  ;; Use word at point as default
+    (read-from-minibuffer "Pattern to search: " (grep-Kopzon--get-full-pattern-at-point) nil t)  ;; Use full pattern at point as default
     (read-directory-name "Directory to search in: " nil nil t)))
   (grep-Kopzon--run search-folder pattern-to-search))
 
@@ -671,7 +677,7 @@ EXTRA-ARGS is a string containing additional arguments for grep."
   "Run grep --color -rni <pattern-to-search> <search-folder> (case-insensitive)."
   (interactive 
    (list 
-    (read-from-minibuffer "Pattern to search: " (thing-at-point 'word t) nil t)  ;; Use word at point as default
+    (read-from-minibuffer "Pattern to search: " (grep-Kopzon--get-full-pattern-at-point) nil t)  ;; Use full pattern at point as default
     (read-directory-name "Directory to search in: " nil nil t)))
   (grep-Kopzon--run search-folder pattern-to-search "-i"))
 
@@ -679,7 +685,7 @@ EXTRA-ARGS is a string containing additional arguments for grep."
   "Run grep --color -rni --include=<file-name-pattern> -e <pattern-to-search> <search-folder>."
   (interactive 
    (list 
-    (read-from-minibuffer "Pattern to search: " (thing-at-point 'word t) nil t)  ;; Use word at point as default
+    (read-from-minibuffer "Pattern to search: " (grep-Kopzon--get-full-pattern-at-point) nil t)  ;; Use full pattern at point as default
     (read-directory-name "Directory to search in: " nil nil t)
     (read-from-minibuffer "File name pattern to search in: " nil nil t)))
   (grep-Kopzon--run search-folder pattern-to-search 
