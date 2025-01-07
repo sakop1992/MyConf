@@ -191,6 +191,7 @@
 
 
 
+
 ;;; Undo tree
 (use-package undo-tree
   :ensure t
@@ -631,52 +632,84 @@ If ARG is nil or 0, make the buffer writable."
 
 
 ;; grep
+(defun grep-Kopzon--run (search-folder pattern-to-search &optional extra-args)
+  "Run grep with specified arguments.
+SEARCH-FOLDER is the folder to search in.
+PATTERN-TO-SEARCH is the search pattern.
+EXTRA-ARGS is a string containing additional arguments for grep."
+  (let* ((default-directory search-folder)
+         (command (format (concat "grep "
+                                  "-rn "
+                                  "--exclude '*~' "
+                                  "--exclude '*#' "
+                                  "--exclude '*TAGS' "
+                                  "--exclude-dir '.git' "
+                                  "%s "
+                                  "'%s' "
+                                  ".")
+                          (or extra-args "")
+                          pattern-to-search)))
+    ;; Run the grep command
+    (grep command)
+    ;; Switch to the *grep* buffer after running the command
+    (switch-to-buffer-other-window "*grep*")
+    (highlight-phrase pattern-to-search 'hi-yellow)))
+
+(defun grep-Kopzon--get-pattern (default-pattern)
+  "Get the search pattern interactively, defaulting to DEFAULT-PATTERN.
+If the user presses Enter without typing anything, DEFAULT-PATTERN is returned."
+  (read-from-minibuffer
+   (if default-pattern
+       (format "Enter pattern to search (default: %s): " default-pattern)
+     "Enter pattern to search: ")
+   nil nil nil nil default-pattern))
+
+(defun grep-Kopzon-rn-at-point ()
+  "Run grep --color -rn for a user-specified or default word at point in the project root directory."
+  (interactive)
+  (let* ((default-pattern (thing-at-point 'word t))
+         (pattern-to-search (grep-Kopzon--get-pattern default-pattern))
+         (search-folder (or (project-root (project-current))
+                            (error "Project root not found"))))
+    (grep-Kopzon--run search-folder pattern-to-search)))
+
+(defun grep-Kopzon-rni-at-point ()
+  "Run grep --color -rni for a user-specified or default word at point in the project root directory."
+  (interactive)
+  (let* ((default-pattern (thing-at-point 'word t))
+         (pattern-to-search (grep-Kopzon--get-pattern default-pattern))
+         (search-folder (or (project-root (project-current))
+                            (error "Project root not found"))))
+    (grep-Kopzon--run search-folder pattern-to-search "-i")))
+
 (defun grep-Kopzon-rn (pattern-to-search search-folder)
-  "Run grep  --color -rn <pattern-to-search> <search-folder>"
+  "Run grep --color -rn <pattern-to-search> <search-folder>."
   (interactive 
-    (list 
-      (read-from-minibuffer "Pattern to search: " nil nil t)
-      (read-directory-name "Directory to search in: " nil nil t)))
-  (grep (format (concat "grep "
-                       "--color "
-                       "-rn "
-                       "'%s' "
-                       "%s")
+   (list 
+    (read-from-minibuffer "Pattern to search: " nil nil t)
+    (read-directory-name "Directory to search in: " nil nil t)))
+  (grep-Kopzon--run search-folder pattern-to-search))
 
-               pattern-to-search
-               search-folder)))
 (defun grep-Kopzon-rni (pattern-to-search search-folder)
-  "Run grep  --color -rni <pattern-to-search> <search-folder>"
+  "Run grep --color -rni <pattern-to-search> <search-folder> (case-insensitive)."
   (interactive 
-    (list 
-      (read-from-minibuffer "Pattern to search: " nil nil t)
-      (read-directory-name "Directory to search in: " nil nil t)))
-  (grep (format (concat "grep "
-                       "--color "
-                       "-rni "
-                       "'%s' "
-                       "%s")
+   (list 
+    (read-from-minibuffer "Pattern to search: " nil nil t)
+    (read-directory-name "Directory to search in: " nil nil t)))
+  (grep-Kopzon--run search-folder pattern-to-search "-i"))
 
-               pattern-to-search
-               search-folder)))
-(global-set-key (kbd "C-x g") 'grep-Kopzon-rni)
 (defun grep-Kopzon-rni-include (pattern-to-search search-folder file-name-pattern)
-  "Run grep  --color -rni --include=<file-name-pattern> -e <pattern-to-search> <search-folder>"
+  "Run grep --color -rni --include=<file-name-pattern> -e <pattern-to-search> <search-folder>."
   (interactive 
-    (list 
-      (read-from-minibuffer "Pattern to search: " nil nil t)
-      (read-directory-name "Directory to search in: " nil nil t)
-      (read-from-minibuffer "File name pattern to search in: " nil nil t)))
-  (grep (format (concat "grep "
-                       "--color "
-                       "-rni "
-                       "--include=\*%s\* "
-                       "-e '%s' "
-                       "%s")
+   (list 
+    (read-from-minibuffer "Pattern to search: " nil nil t)
+    (read-directory-name "Directory to search in: " nil nil t)
+    (read-from-minibuffer "File name pattern to search in: " nil nil t)))
+  (grep-Kopzon--run search-folder pattern-to-search 
+                    (format "-i --include='*%s*'" file-name-pattern)))
 
-               file-name-pattern
-               pattern-to-search
-               search-folder)))
+;; Key binding for convenience
+(global-set-key (kbd "C-x g") 'grep-Kopzon-rni)
 
 ;;##############################################################################
 ;; Maps
@@ -773,6 +806,7 @@ If ARG is nil or 0, make the buffer writable."
  "msc" 'magit-stash-clear 
  "mt" 'magit-tag 
  
+ "§" 'helm-gtags-pop-stack
  "`" 'helm-gtags-pop-stack
  "3" 'helm-gtags-find-tag
  "M-3" 'helm-gtags-find-tag
@@ -876,7 +910,9 @@ If ARG is nil or 0, make the buffer writable."
  "g" 'goto-line
  "<up>" 'move-text-up
  "<down>" 'move-text-down
- "M-g" 'gtags-find-with-grep
+ "M-g" 'grep-Kopzon-rn-at-point
+ "M-i" 'grep-Kopzon-rni-at-point
+ "M-d" 'grep-Kopzon-rn
  "<right>" (kbd "C-u 4 C-x <tab>")
  "<left>" (kbd "C-u -4 C-x <tab>"))
 ;g-map end

@@ -114,6 +114,14 @@ alias gmn='git commit --amend --no-edit'
 alias gtAll='gtags'
 alias gt='GTAGSCONF=~/.globalrc_no_tests gtags'
 
+alias Kopzon='cd ~/MyConf'
+
+# Fireblocks
+alias core='cd ~/git/core'
+alias core1='cd ~/git/core_1'
+alias core2='cd ~/git/core_2'
+alias core3='cd ~/git/core_3'
+
 # ----------------------------------------
 # PATH & ENVIRONMENT
 # ----------------------------------------
