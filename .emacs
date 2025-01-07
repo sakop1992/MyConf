@@ -264,25 +264,26 @@
 
 (add-hook 'c++-mode-hook #'electric-pair-mode)
 
-;(use-package clang-format
+
+;(use-package clang-format ;;;;;;;;;;;;;;;;; b68fa347f7
 ;  :ensure t
 ;  :config
 ;  (add-hook 'c++-mode-hook 'clang-format+-mode)  ; Enable clang-format+ mode for C++
 ;  (add-hook 'c-mode-hook 'clang-format+-mode)
 ;  (remove-hook 'before-save-hook 'clang-format-buffer)  ; Disable auto-format on save
 ;  (setq clang-format-on-save nil))  ; Disable auto-format on save
-;
-;(defun format-and-save ()
-;  "Format the current region or buffer using clang-format, then save the buffer."
-;  (interactive)
-;  ;; Check if there is an active region
-;  (if (use-region-p)
-;      (clang-format-region (region-beginning) (region-end))  ;; Format the region
-;    (clang-format-buffer))                                  ;; Format the entire buffer
-;  ;; Save the buffer
-;  (save-buffer))
-;(global-set-key (kbd "C-x / /") 'format-and-save)
-;
+
+(defun format-and-save ()
+  "Format the current region or buffer using clang-format, then save the buffer."
+  (interactive)
+  ;; Check if there is an active region
+  (if (use-region-p)
+      (clang-format-region (region-beginning) (region-end))  ;; Format the region
+    (clang-format-buffer))                                  ;; Format the entire buffer
+  ;; Save the buffer
+  (save-buffer))
+(global-set-key (kbd "C-x / /") 'format-and-save)
+
 ;(defun my-clang-format-on-return-and-semicolon ()
 ;  "Format the code using clang-format when pressing RET or ;."
 ;  (local-set-key (kbd ";")
