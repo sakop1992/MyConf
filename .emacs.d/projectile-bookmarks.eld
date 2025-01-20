@@ -1,1 +1,1 @@
-("~/git/core/")
+("~/git/core/" "~/git/ops-client/" "~/git_1/core/" "~/git/developer-api-service/" "~/git_1/ops-client/" "~/git/service-interfaces/" "~/git/console-app-service/")

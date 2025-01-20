@@ -12,11 +12,18 @@
  '(gud-gdb-command-name
    "gdb -i=mi --args ./Debug/gcc/test/gtest_all/gtest_all --gtest_filter=")
  '(package-selected-packages
-   '(helm-lsp auto-complete-clang lsp-mode helm-flyspell flyspell-correct-helm helm-ispell undo-tree gtags-mode magit mo-git-blame general multiple-cursors helm-gtags helm)))
+   '(dtrt-indent flycheck web-mode tide helm-lsp auto-complete-clang lsp-mode helm-flyspell flyspell-correct-helm helm-ispell undo-tree gtags-mode magit mo-git-blame general multiple-cursors helm-gtags helm)))
 
 ;;##############################################################################
 ;; Global stuff
 ;;##############################################################################
+
+;; Configuration for Mac native work
+;(setq split-width-threshold 0)   ; Force vertical split
+;(setq split-height-threshold nil) ; Disable horizontal split
+;(set-face-attribute 'default nil :height 100)
+
+(setq vc-follow-symlinks nil)
 
 (setq-default mode-line-format
               (list
@@ -32,13 +39,13 @@
 ;; Open fileA and fileB at startup
 (setq initial-buffer-choice nil)  ; Don't open a specific file on startup
 (add-to-list 'initial-frame-alist '(fullscreen . maximized))  ; Optional: Start Emacs maximized
-(set-face-attribute 'default nil :height 140)
+(set-face-attribute 'default nil :height 130)
 
 ;; Open two specific files in different buffers
 (setq inhibit-startup-screen t)
 (defun open-my-files ()
   "Open fileA and fileB in separate buffers."
-  (find-file "~/git/core/untrusted_proxy/enclave/configuration_manager.cpp")       ; Open fileA in the first buffer
+  (find-file "~/git/")       ; Open fileA in the first buffer
   (split-window-right)           ; Split the window horizontally
   (other-window 1)               ; Move to the right window
   (find-file "~/.emacs")         ; Open fileB in the second buffer
@@ -88,12 +95,19 @@
 
 ;; Add MELPA repository to the list of package sources
 (require 'package)
+
+;; Add MELPA to the package archives
 (setq package-archives '(("melpa" . "https://melpa.org/packages/")
                          ("gnu" . "https://elpa.gnu.org/packages/")
                          ("org" . "https://orgmode.org/elpa/")))
+
+;; Initialize the package system
 (package-initialize)
 
-;;; .emacs -- Emacs configuration for Helm, Helm-Gtags, and fuzzy search
+;; Refresh package contents if needed
+(unless package-archive-contents
+  (package-refresh-contents))
+
 
 ;; Ensure use-package is installed
 (eval-when-compile
@@ -103,7 +117,7 @@
 ;; Packages definitions
 ;;##############################################################################
 
-;;; Helm configuration
+;;; Helm, Helm-Gtags, and fuzzy search configuration
 (use-package helm
   :ensure t
   :config
@@ -295,6 +309,115 @@
 ;(add-hook 'c++-mode-hook 'my-clang-format-on-return-and-semicolon)
 ;(add-hook 'c-mode-hook 'my-clang-format-on-return-and-semicolon)
 
+
+;;; Type Script
+;; Ensure use-package is installed
+(unless (package-installed-p 'use-package)
+  (package-refresh-contents)
+  (package-install 'use-package))
+
+(require 'use-package)
+
+;; Enable web-mode for TypeScript files
+(use-package web-mode
+  :ensure t
+  :mode (("\\.ts\\'" . web-mode)
+         ("\\.tsx\\'" . web-mode))
+  :config
+  (setq web-mode-enable-auto-quoting nil) ;; Disable automatic adding of quotes
+  (setq web-mode-markup-indent-offset 4)  ;; HTML indentation
+  (setq web-mode-css-indent-offset 4)     ;; CSS indentation
+  (setq web-mode-code-indent-offset 4)   ;; JavaScript/TypeScript indentation
+  )
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Setup Tide for TypeScript
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(use-package tide
+  :ensure t
+  :hook ((web-mode . (lambda ()
+                       (when (or (string-equal "ts" (file-name-extension buffer-file-name))
+                                 (string-equal "tsx" (file-name-extension buffer-file-name)))
+                         (setup-tide-mode))))
+         (typescript-mode . setup-tide-mode))
+  :config
+  (defun setup-tide-mode ()
+    "Setup Tide mode for TypeScript files."
+    (interactive)
+    (tide-setup)
+    (flycheck-mode +1)
+    (setq flycheck-check-syntax-automatically '(save mode-enabled))
+    (eldoc-mode +1)
+    (company-mode +1)
+    (tide-hl-identifier-mode +1)
+    (setq company-tooltip-align-annotations t)))
+
+;; Flycheck for real-time linting
+(use-package flycheck
+  :ensure t
+  :hook (typescript-mode . flycheck-mode)
+  :config
+  (setq flycheck-check-syntax-automatically '(save mode-enabled)))
+
+;; Company for autocompletion
+(use-package company
+  :ensure t
+  :hook (typescript-mode . company-mode)
+  :config
+  (setq company-minimum-prefix-length 1
+        company-idle-delay 0.0)) ;; Show suggestions immediately
+
+;; Projectile for project management
+(use-package projectile
+  :ensure t
+  :config
+  (projectile-mode +1)
+  (setq projectile-completion-system 'auto))
+
+;; Optional: Magit for Git integration
+(use-package magit
+  :ensure t
+  :commands magit-status)
+
+(add-hook 'typescript-mode-hook #'lsp)
+(setq lsp-prefer-flymake nil) ;; Use flycheck instead of flymake
+(add-hook 'lsp-mode-hook 'lsp-ui-mode)
+(unless (package-installed-p 'lsp-ui)
+  (package-refresh-contents)
+  (package-install 'lsp-ui))
+(add-hook 'lsp-mode-hook 'lsp-ui-mode)
+
+;;;;;;;;;;;;;;;;;;;;;;; fix indentations ;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; Install `dtrt-indent` if not already installed
+(unless (package-installed-p 'dtrt-indent)
+  (package-refresh-contents)
+  (package-install 'dtrt-indent))
+
+;; Require and enable `dtrt-indent` mode
+(require 'dtrt-indent)
+(dtrt-indent-mode 1)
+
+;; Set verbosity level (0 = silent, 1 = some messages, 2 = more messages)
+(setq dtrt-indent-verbosity 1)
+
+;; Run `dtrt-indent` after SMIE (Simple Minded Indentation Engine)
+(setq dtrt-indent-run-after-smie t)
+
+;; Adjust the threshold for detecting indentation
+(setq dtrt-indent-min-quality 50.0)
+
+;; Enable `dtrt-indent` for specific modes
+(add-hook 'prog-mode-hook #'dtrt-indent-mode)
+(add-hook 'text-mode-hook #'dtrt-indent-mode)
+
+;; Optional: Custom setup for `dtrt-indent`
+(defun my-custom-dtrt-indent-setup ()
+  "Custom setup for `dtrt-indent`."
+  ;; Add any custom setup here
+  (message "Custom `dtrt-indent` setup for %s" (buffer-name)))
+
+(add-hook 'dtrt-indent-hook 'my-custom-dtrt-indent-setup)
 
 ;;##############################################################################
 ;; Functions
@@ -645,6 +768,7 @@ EXTRA-ARGS is a string containing additional arguments for grep."
                                   "--exclude '*#' "
                                   "--exclude '*TAGS' "
                                   "--exclude-dir '.git' "
+                                  "--exclude-dir '*test*' "
                                   "%s "
                                   "'%s' "
                                   ".")
@@ -806,6 +930,8 @@ EXTRA-ARGS is a string containing additional arguments for grep."
  "gp" 'helm-gtags-find-pattern
  "<up>" 'helm-gtags-resume
  "ss" 'helm-gtags-show-stack
+
+ "q" 'query-replace
 )
 ; End of r-map
 
@@ -872,6 +998,9 @@ EXTRA-ARGS is a string containing additional arguments for grep."
  "/3" 'split-window-right
  "/d" (kbd "C-x 1 C-x 3")
  "/0" 'delete-window
+ "0" (kbd "C-x 0")
+ "1" (kbd "C-x 1")
+ "2" (kbd "C-x 2")
 
  "o" (kbd "C-x o")
  "j"  'ace-jump-mode
@@ -977,6 +1106,13 @@ EXTRA-ARGS is a string containing additional arguments for grep."
 (global-set-key (kbd "M-p") (kbd "C-M-p"))
 (global-set-key (kbd "M-u") (kbd "C-M-u"))
 
+; Fix M-. key binding
+(with-eval-after-load 'gtags
+  (define-key gtags-mode-map (kbd "M-.") nil)
+  (define-key gtags-mode-map (kbd "C-c t") 'gtags-find-tag))
+(global-unset-key (kbd "M-."))
+(global-set-key (kbd "M-.") 'xref-find-definitions)
+
 ;;; End of .emacs file
 
 ;;##############################################################################
@@ -988,7 +1124,7 @@ EXTRA-ARGS is a string containing additional arguments for grep."
  ;; If you edit it by hand, you could mess it up, so be careful.
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
- )
+ '(flyspell-duplicate ((t (:inherit nil :background "#2b2630" :underline t)))))
 
 (defalias 'todoKopzon
    (kmacro "<up> M-e <return> / * * / <left> <left> SPC SPC <left> T O D O SPC P 0 SPC K o p z o n SPC - SPC"))

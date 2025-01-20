@@ -9,3 +9,5 @@ Ubuntu/.emacs.d/auto-save-list/*
 *.svg
 .emacs.d/elpa/*
 Ubuntu/.emacs.d/elpa/*
+.emacs.d/.lsp*
+.emacs.d/projectile*
