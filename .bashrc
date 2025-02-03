@@ -124,3 +124,31 @@ for brch in $(git branch -r | grep -i $2); do
 done
 }
 
+function restartService() {
+    set -x  # Enable debug mode (prints commands before execution)
+
+    __SERVICE_NAME=$1
+    __SERVICE_DIR="${__SERVICE_NAME//-/_}"  # Fixing variable reference to match input
+
+    echo "Recompiling ${__SERVICE_DIR}"
+    docker exec ${__SERVICE_NAME} bash -cx "cd /usr/src/core/; make clean; ./fast_make.py --flags CORE_TEST=1 --service ${__SERVICE_DIR};"
+
+    echo "make install ${__SERVICE_NAME}"
+    docker exec ${__SERVICE_NAME} bash -cx "rm -f /opt/fireblocks/${__SERVICE_NAME}/${__SERVICE_NAME} /opt/fireblocks/${__SERVICE_NAME}/enclave.signed.so; cd /usr/src/core/${__SERVICE_DIR}; sudo make install"
+
+    echo "Restarting ${__SERVICE_NAME} service"
+    docker restart ${__SERVICE_NAME}
+
+    set +x  # Disable debug mode
+}
+
+restartServiceNew() {
+    __SERIVCE_NAME=$1
+    __CONTAINER_NAME="${__SERIVCE_NAME//_/-}"
+    echo "Recompiling ${__SERIVCE_NAME}"
+    docker exec ${__CONTAINER_NAME} bash -cx "cd /usr/src/core/; make clean -C ${__SERIVCE_NAME}; ./fast_make.py;"
+    echo "make install ${__SERIVCE_NAME}"
+    docker exec ${__CONTAINER_NAME} bash -cx "rm -f /opt/fireblocks/${__SERIVCE_NAME}/${__SERIVCE_NAME}; cd /usr/src/core/${__SERIVCE_NAME}; sudo make install"
+    echo "Restarting ${__CONTAINER_NAME} service"
+    docker restart ${__CONTAINER_NAME}
+}
