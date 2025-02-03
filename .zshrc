@@ -99,7 +99,8 @@ alias pbpaste='xclip -selection clipboard -o'
 # Git shortcuts
 alias gs='git branch && git status'
 alias gaNew='git add'
-alias ga='git add . && git clang-format && git add .'
+alias gaOld='git add . && git clang-format && git add .'
+alias ga='git add .'
 alias gc='git commit -m'
 alias gp='git push'
 alias glNew='git log --oneline --graph --decorate --all'
@@ -113,6 +114,14 @@ alias gmn='git commit --amend --no-edit'
 # gtags
 alias gtAll='gtags'
 alias gt='GTAGSCONF=~/.globalrc_no_tests gtags'
+
+alias Kopzon='cd ~/MyConf'
+
+# Fireblocks
+alias core='cd ~/git/core'
+alias core1='cd ~/git/core_1'
+alias core2='cd ~/git/core_2'
+alias core3='cd ~/git/core_3'
 
 # ----------------------------------------
 # PATH & ENVIRONMENT
