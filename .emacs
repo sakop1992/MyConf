@@ -3,7 +3,7 @@
  ;; If you edit it by hand, you could mess it up, so be careful.
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
- '(compile-command "make clean; ./fast_make.py;")
+ '(compile-command "rb deploy flags_service --verbose;")
  '(custom-enabled-themes '(leuven-dark))
  '(custom-safe-themes
    '("8d14ca041310cdebae19e846f71c6c70c031ba7f17699ff0587c867708c76952" "1a28f468437692af960830825b70b11d212d8003a51b9eb186bf11ff8b6c2cf5" "6fb5ca6ffa60a425099eb68d35c3f49ff09fbdfcb0ceaed1374a38802e16236c" "fb6e289eb079d7e020f57b19125265dc11635b22907f29375b5ad751b14e7f3c" "a408b0ae89841683a263bface3c6e0f3eabc84c7f4fc4bfe44133e6cf8b103c9" "976d3b93935d13987a6f4cb3521849b20de502a4e07c117780e8eb55c3761165" "1e933e721c4095077562fea9ed93b9353039aab2bc91a83c79a22cf9ba9f48b2" "ccf798935bc7b94f03e21c81c2ae51d7b35ee22d20c036a88e85314e85d3d0f3" "47fad18a93a63242796cc440157e8bd2ecafbe868fd9dab8b1470c684d8fd7f9" "284e04e855276e90b5db774dde622affd9549be3faefd8da1da5f1d33e7f4b0b" default))
@@ -12,11 +12,14 @@
  '(gud-gdb-command-name
    "gdb -i=mi --args ./Debug/gcc/test/gtest_all/gtest_all --gtest_filter=")
  '(package-selected-packages
-   '(dtrt-indent flycheck web-mode tide helm-lsp auto-complete-clang lsp-mode helm-flyspell flyspell-correct-helm helm-ispell undo-tree gtags-mode magit mo-git-blame general multiple-cursors helm-gtags helm)))
+   '(helm-company company which-key dtrt-indent flycheck web-mode tide helm-lsp auto-complete-clang lsp-mode helm-flyspell flyspell-correct-helm helm-ispell undo-tree gtags-mode magit mo-git-blame general multiple-cursors helm-gtags helm)))
 
 ;;##############################################################################
 ;; Global stuff
 ;;##############################################################################
+
+(desktop-save-mode 1)
+(setq desktop-auto-save-timeout 300)  ;; Auto-save session every 5 minutes
 
 ;; Configuration for Mac native work
 ;(setq split-width-threshold 0)   ; Force vertical split
@@ -112,6 +115,16 @@
 ;; Ensure use-package is installed
 (eval-when-compile
   (require 'use-package))
+
+;;; Adjust compilation interactive error links
+(require 'compile)
+;; Define a custom regex to ignore prefixes like "#14 3.080"
+(add-to-list 'compilation-error-regexp-alist-alist
+             '(my-compiler 
+               "^#?[0-9]+\\s-+[0-9]+\\.?[0-9]*\\s-+\\([^:\n]+\\):\\([0-9]+\\):\\([0-9]+\\):" 
+               1 2 3))
+;; Add it to the active list of regexps
+(add-to-list 'compilation-error-regexp-alist 'my-compiler)
 
 ;;##############################################################################
 ;; Packages definitions
@@ -311,13 +324,6 @@
 
 
 ;;; Type Script
-;; Ensure use-package is installed
-(unless (package-installed-p 'use-package)
-  (package-refresh-contents)
-  (package-install 'use-package))
-
-(require 'use-package)
-
 ;; Enable web-mode for TypeScript files
 (use-package web-mode
   :ensure t
@@ -327,45 +333,60 @@
   (setq web-mode-enable-auto-quoting nil) ;; Disable automatic adding of quotes
   (setq web-mode-markup-indent-offset 4)  ;; HTML indentation
   (setq web-mode-css-indent-offset 4)     ;; CSS indentation
-  (setq web-mode-code-indent-offset 4)   ;; JavaScript/TypeScript indentation
-  )
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Setup Tide for TypeScript
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(use-package tide
-  :ensure t
-  :hook ((web-mode . (lambda ()
-                       (when (or (string-equal "ts" (file-name-extension buffer-file-name))
-                                 (string-equal "tsx" (file-name-extension buffer-file-name)))
-                         (setup-tide-mode))))
-         (typescript-mode . setup-tide-mode))
-  :config
-  (defun setup-tide-mode ()
-    "Setup Tide mode for TypeScript files."
-    (interactive)
-    (tide-setup)
-    (flycheck-mode +1)
-    (setq flycheck-check-syntax-automatically '(save mode-enabled))
-    (eldoc-mode +1)
-    (company-mode +1)
-    (tide-hl-identifier-mode +1)
-    (setq company-tooltip-align-annotations t)))
+  (setq web-mode-code-indent-offset 4))   ;; JavaScript/TypeScript indentation
 
 ;; Flycheck for real-time linting
 (use-package flycheck
   :ensure t
-  :hook (typescript-mode . flycheck-mode)
+  :hook (web-mode . flycheck-mode)
   :config
   (setq flycheck-check-syntax-automatically '(save mode-enabled)))
 
 ;; Company for autocompletion
 (use-package company
   :ensure t
-  :hook (typescript-mode . company-mode)
+  :hook (web-mode . company-mode)
   :config
   (setq company-minimum-prefix-length 1
         company-idle-delay 0.0)) ;; Show suggestions immediately
+
+;; LSP Mode for TypeScript
+(use-package lsp-mode
+  :ensure t
+  :hook ((web-mode . lsp)
+         (lsp-mode . lsp-enable-which-key-integration))
+  :commands lsp
+  :config
+  (setq lsp-prefer-flymake nil) ;; Use flycheck instead of flymake
+  (setq lsp-enable-snippet t)   ;; Enable snippet support
+  (setq lsp-completion-provider :capf) ;; Use completion-at-point-functions for LSP completion
+  (setq lsp-idle-delay 0.500)   ;; Delay before LSP server is called
+  (setq lsp-headerline-breadcrumb-enable 1)) ;; Disable breadcrumb header
+
+;; LSP UI for better LSP experience
+(use-package lsp-ui
+  :ensure t
+  :commands lsp-ui-mode
+  :hook (lsp-mode . lsp-ui-mode)
+  :config
+  (setq lsp-ui-sideline-enable nil
+        lsp-ui-sideline-show-hover nil
+        lsp-ui-sideline-show-diagnostics nil
+        lsp-ui-sideline-show-code-actions nil
+        lsp-ui-doc-enable nil
+        lsp-ui-doc-use-childframe nil
+        lsp-ui-doc-position 'at-point))
+
+;; Ensure lsp-ui is installed
+(unless (package-installed-p 'lsp-ui)
+  (package-refresh-contents)
+  (package-install 'lsp-ui))
+
+;; Which-key integration for LSP
+(use-package which-key
+  :ensure t
+  :config
+  (which-key-mode))
 
 ;; Projectile for project management
 (use-package projectile
@@ -378,14 +399,6 @@
 (use-package magit
   :ensure t
   :commands magit-status)
-
-(add-hook 'typescript-mode-hook #'lsp)
-(setq lsp-prefer-flymake nil) ;; Use flycheck instead of flymake
-(add-hook 'lsp-mode-hook 'lsp-ui-mode)
-(unless (package-installed-p 'lsp-ui)
-  (package-refresh-contents)
-  (package-install 'lsp-ui))
-(add-hook 'lsp-mode-hook 'lsp-ui-mode)
 
 ;;;;;;;;;;;;;;;;;;;;;;; fix indentations ;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -756,6 +769,34 @@ If ARG is nil or 0, make the buffer writable."
 
 
 ;; grep
+(defun full-grep-Kopzon--run (search-folder pattern-to-search &optional extra-args)
+  "Run grep with specified arguments.
+SEARCH-FOLDER is the folder to search in.
+PATTERN-TO-SEARCH is the search pattern.
+EXTRA-ARGS is a string containing additional arguments for grep."
+  (let* ((default-directory search-folder)
+         (command (format (concat "grep "
+                                  "-rn "
+                                  "--exclude '*~' "
+                                  "--exclude '*#' "
+                                  "--exclude '*\.so' "
+                                  "--exclude '*\.enc' "
+                                  "--exclude '*TAGS' "
+                                  "--exclude-dir '.git' "
+                                  "%s "
+                                  "'%s' "
+                                  ".")
+                          (or extra-args "")
+                          pattern-to-search)))
+    ;; Run the grep command
+    (grep command)
+    ;; Switch to the *grep* buffer after running the command
+    (switch-to-buffer-other-window "*grep*")
+    ;; Ensure pattern-to-search is a string before highlighting it
+    (highlight-phrase (if (stringp pattern-to-search)
+                          pattern-to-search
+                        (format "%s" pattern-to-search)) 'hi-yellow)))
+
 (defun grep-Kopzon--run (search-folder pattern-to-search &optional extra-args)
   "Run grep with specified arguments.
 SEARCH-FOLDER is the folder to search in.
@@ -766,6 +807,10 @@ EXTRA-ARGS is a string containing additional arguments for grep."
                                   "-rn "
                                   "--exclude '*~' "
                                   "--exclude '*#' "
+                                  "--exclude '*\.so' "
+                                  "--exclude '*\.enc' "
+                                  "--exclude '*\.js' "
+                                  "--exclude '*\.html' "
                                   "--exclude '*TAGS' "
                                   "--exclude-dir '.git' "
                                   "--exclude-dir '*test*' "
@@ -805,6 +850,22 @@ EXTRA-ARGS is a string containing additional arguments for grep."
     (read-directory-name "Directory to search in: " nil nil t)))
   (grep-Kopzon--run search-folder pattern-to-search "-i"))
 
+(defun full-grep-Kopzon-rn (pattern-to-search search-folder)
+  "Run grep --color -rn <pattern-to-search> <search-folder>."
+  (interactive 
+   (list 
+    (read-from-minibuffer "Pattern to search: " (grep-Kopzon--get-full-pattern-at-point) nil t)  ;; Use full pattern at point as default
+    (read-directory-name "Directory to search in: " nil nil t)))
+  (full-grep-Kopzon--run search-folder pattern-to-search))
+
+(defun full-grep-Kopzon-rni (pattern-to-search search-folder)
+  "Run grep --color -rni <pattern-to-search> <search-folder> (case-insensitive)."
+  (interactive 
+   (list 
+    (read-from-minibuffer "Pattern to search: " (grep-Kopzon--get-full-pattern-at-point) nil t)  ;; Use full pattern at point as default
+    (read-directory-name "Directory to search in: " nil nil t)))
+  (full-grep-Kopzon--run search-folder pattern-to-search "-i"))
+
 (defun grep-Kopzon-rni-include (pattern-to-search search-folder file-name-pattern)
   "Run grep --color -rni --include=<file-name-pattern> -e <pattern-to-search> <search-folder>."
   (interactive 
@@ -817,7 +878,8 @@ EXTRA-ARGS is a string containing additional arguments for grep."
 
 
 ;; Key binding for convenience
-(global-set-key (kbd "C-x g") 'grep-Kopzon-rni)
+(global-set-key (kbd "C-x g g") 'grep-Kopzon-rni)
+(global-set-key (kbd "C-x g f") 'full-grep-Kopzon-rni)
 
 ;;##############################################################################
 ;; Maps
@@ -875,6 +937,7 @@ EXTRA-ARGS is a string containing additional arguments for grep."
  "x" (kbd "C-e C-x C-e <down> C-a")
  "'" (kbd "C-e C-x C-e <down> C-a")
  "SPC" (kbd "C-SPC")
+ "M-g f" 'full-grep-Kopzon-rni
  "M-g g" 'grep-Kopzon-rni
  "M-g s" 'grep-Kopzon-rn
  "M-g i" 'grep-Kopzon-rni-include
@@ -1024,6 +1087,7 @@ EXTRA-ARGS is a string containing additional arguments for grep."
  "<up>" 'move-text-up
  "<down>" 'move-text-down
  "M-g" 'grep-Kopzon-rn
+ "M-f" 'full-grep-Kopzon-rni
  "M-i" 'grep-Kopzon-rni
  "M-s" 'grep-Kopzon-rni-include
  "<right>" (kbd "C-u 4 C-x <tab>")
@@ -1111,7 +1175,9 @@ EXTRA-ARGS is a string containing additional arguments for grep."
   (define-key gtags-mode-map (kbd "M-.") nil)
   (define-key gtags-mode-map (kbd "C-c t") 'gtags-find-tag))
 (global-unset-key (kbd "M-."))
-(global-set-key (kbd "M-.") 'xref-find-definitions)
+(global-unset-key (kbd "M-?"))
+(global-set-key (kbd "M-.") 'lsp-find-definition)
+(global-set-key (kbd "M-?") 'lsp-ui-peek-find-references)
 
 ;;; End of .emacs file
 

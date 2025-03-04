@@ -1,0 +1,412 @@
+dev VM: 10.32.241.23
+
+#!/bin/bash
+docker stop $(docker ps -a -q)
+docker rm $(docker ps -a -q)
+docker system prune -f
+
+Dev VM container setup commands:
+--------------------------------
+yes | sudo apt-get update
+yes | sudo apt install emacs
+yes | sudo apt install global
+yes | sudo apt install ispell
+cp -r /hostRoot/home/ubuntu/.emacs* ~
+mkdir ~/git
+sudo ln -s /usr/src/core ~/git/core
+sudo ln -s /hostRoot/home/ubuntu/.aliases ~/.bash_aliases
+
+VM clean-up:
+------------
+docker images | grep G
+docker rmi <image_instance>
+docker system prune -f
+
+Contacts:
+---------
+@Maayan Tal  - system architect
+@Costy Blokh  - system architect
+@Pazit Simantov Ofer  - Trusted my sql implementation
+@lior vaisman - dev tools (rent blocks and dev VMs)
+@Oded Saban, @Idan Lanis Infra guys for rentblocks:
+Ben Liderman - code formatting
+@Yaniv Mordehai - c++ formatting
+@Omer Ramote - TM - timeouts etc...
+Vitaly Paykov, Valery Haberman - Console app service
+Igor Khanin - feature flags
+
+
+Rentblocks:
+-----------
+npm install -g @fireblocks/rentblocks-cli
+
+Yarn:
+-----
+yarn add - add package
+yarn install - install all project dependencies
+
+User defined scripts (example OPS Client project):
+     yarn build - compile
+     yarn start - compile and run
+
+-------
+-------
+Dev VM:
+-------
+-------
+Compilatiopn:
+    ./build_local.sh -> ./fast_make.sh
+
+Unit tests:
+-----------
+python tests:
+    cd core_tests && ./core_tests.py -D && ./core_tests.py -BU && cd -
+    pytest configuration_manager/test_vault_account.py::test_rename_vault_account
+
+C++ tests:
+    restartService flags-service
+    docker-compose -f docker-compose-local.yml down && SGX_DEVICE=/dev/null docker-compose -f docker-compose-local.yml up -d
+    docker exec -it core_test bash
+    cd flags_service/test && test -c invalid-set-treat-global-as-tenant-after-create
+
+Clean remoteblocks env before deploy:
+-------------------------------------
+find ~/remoteblocks/remote/modules/ -type f -name "commit-id" -exec rm -f {} +
+
+Bring compiled code to local:
+-----------------------------
+ssh ubuntu@10.32.241.23 "cd ~/git/core/ && echo 'Kopzon'" && rsync -avz --delete -e ssh --exclude '.git/' --exclude '*.o' --exclude '*.a' --exclude '*.lock' --exclude '*.d' --exclude '*.so' --exclude '*.enc' ubuntu@10.32.241.23:~/git/core ~/git && GTAGSCONF=~/.globalrc_no_tests gtags
+
+find . -name "*.o" -type f -delete
+
+GDB:
+----
+cd /
+yes | apt update
+yes | apt install gdb binutils vim wget
+wget https://download.01.org/intel-sgx/sgx-linux/2.20/distro/ubuntu20.04-server/sgx_linux_x64_sdk_2.20.100.4.bin
+chmod +x sgx_linux_x64_sdk_2.20.100.4.bin
+yes | ./sgx_linux_x64_sdk_2.20.100.4.bin
+source /y/sgxsdk/environment
+alias sgx-gdb='/y/sgxsdk/bin/sgx-gdb'
+
+
+
+
+function restartService() {
+    #set -x  # Enable debug mode (prints commands before execution)
+
+    __SERVICE_NAME=$1
+    __SERVICE_DIR="${__SERVICE_NAME//-/_}"  # Fixing variable reference to match input
+    
+    echo "Recompiling ${__SERVICE_DIR}"
+    docker exec ${__SERVICE_NAME} bash -cx "cd /usr/src/core/; make clean; ./fast_make.py --flags CORE_TEST=1 SGX_MODE=SIM --no-sgx --service ${__SERVICE_DIR};"
+    
+    echo "make install ${__SERVICE_NAME}"
+    docker exec ${__SERVICE_NAME} bash -cx "rm -f /opt/fireblocks/${__SERVICE_DIR}/${__SERVICE_DIR} /opt/fireblocks/${__SERVICE_DIR}/enclave.signed.so; cd /usr/src/core/${__SERVICE_DIR}; sudo make install"
+    
+    echo "Restarting ${__SERVICE_NAME} service"
+    docker restart ${__SERVICE_NAME}
+
+    #set +x  # Disable debug mode
+}
+
+
+Compile command for Emacs:
+--------------------------
+git add . && git commit --amend --no-edit && git push --force && ssh -t ubuntu@10.32.241.23 "~/killContainers.sh && cd ~/git/core/ && ~/update_git.sh && ./build_local.sh && docker exec core_test bash -c 'cd /usr/src/core && make clean && ./fast_make.py --only-common && ./fast_make.py --service vault_service'"
+
+git add . && git commit --amend --no-edit && git push --force && ssh -t ubuntu@10.32.241.23 "cd ~/git/core/ && ~/update_git.sh && make clean && ./build_local_integration.sh"
+
+git add . && git commit --amend --no-edit && git push --force && ssh -t ubuntu@10.32.241.23 "cd ~/git/core/ && ~/update_git.sh && docker-compose -f docker-compose-local.yml down && SGX_DEVICE=/dev/null docker-compose -f docker-compose-local.yml up -d && restartService flags-service && docker exec core_test bash -c 'cd /usr/src/core/sgx_sqlite3 && make sgx_sqlite3 && cd /usr/src/core/flags_service/tests && make -j8; ./test -c invalid-set-treat-global-as-tenant-after-create'"
+
+optional:
+cd /usr/src/core && make clean && ./fast_make.py --only-common
+
+ssh -t ubuntu@10.32.241.23 "core && cd core_tests && ./core_tests.py -D && ./core_tests.py -BU && pytest tasset_service/tasset_service_test.py::test_base_create_delete"
+
+docker exec -it core_test bash -c "pytest tasset_service/tasset_service_test.py::test_base_create_delete"
+
+git add . && git commit --amend --no-edit && git push --force && ssh -t ubuntu@10.32.241.23 "cd ~/git/core/ && ~/update_git.sh && cd core_tests && ./core_tests.py -D && ./core_tests.py -BU && pytest exchange_service/binance/test_binance_exchangeInternalTransfer.py::test_internal_transfer_portfolio_margin_spot[BINANCE-ALGO_USDC_UV4I-True-MARGIN-SPOT]"
+
+
+Asset service:
+--------------
+@Boris Avney - service name
+1. Start service in core
+   - directory
+   - makefile
+   - dockerfile
+   - thrift API
+   - pytest
+2. Copy code from vault service to asset
+
+Based on Costy video:
+
+https://drive.google.com/file/d/1OFYpBxjsniwDvRdaIqHPWwbjWTUIFyYk/view?usp=drivesdkConnect your Google account 
+
+Most of the process is based on copy-paste from an existing service. For convenient  template, choose a "simple" service like wallet_proxy.
+
+Add a thrift file that define the service's API: common → thrift → <service_name>.thrift 
+
+When statuses are created, add them to thrift file
+
+When API function are created, add them to thrift file.
+
+
+<service_name>.thrift
+Add service definition to Makefile: common → Makefile
+
+
+Makefile
+Create service directory and start copying and modify relevant files.
+
+logging.xml - service logging definitions → modify service name.
+
+
+logging.xml
+  enclave → 
+
+enclave.config.xml → take as is. 
+
+TCSNum - define enclave threads max count (will allocate stack memory accordingly). 11 is the default number. Policy service for example has 41.
+
+ProdID - in dev: 0, in prod:100.
+
+ISVSVM - versions managing (not in use).
+
+StackMaxSize - always 256k.
+
+HeapMaxSize - defined per usage.
+
+DisableDebug - in dev:0, in prod:1
+
+
+enclave.config.xml
+enclave.edl → special abilities can be added, for example blockchain ocalls (edl: enclave definition language).
+
+
+enclave.lds
+enclave.lds → take as is.
+
+enclave.<env>.config.xml
+
+enclave.pre1.config.xml, enclave.prod.config.xml, enclave.stage.config.xml → take as is and modify TCSNum so it will be the same in all envs.
+
+
+enclave.pre1.config.xml
+
+enclave.prod.config.xml
+
+enclave.stage.config.xml
+enclave_private.pem → take as is
+
+
+enclave_private.pem
+key.pem → take as is 
+
+
+key.pem
+key.pem.h → take as is 
+
+
+key.pem.h
+cert.pem, cert.pem.h → service certificate. Is needed to be made by the script create_certs.sh. Add another line for the specific service, run it and add the cert. In production, this will be made by DevOps so they are needed to be informed by the service developer before deploy.
+
+
+create_certs.sh
+	cert.pem
+	cert.pem.h
+openssl x509 -in ../framework/internals/cert/tasset_service/cert.pem -text -noout
+
+firewall.json →  define for each endpoint which service will be able to reach him. Can be one service, array of services or all services (by adding * ). 
+
+
+firewall.json
+enclave.cpp → the above functions are needed to be implemented (mostly copy paste):
+
+init() →  
+
+trusted server (cert + private key) with processor which is build through serviceFactory (for more details go to video at 13:00)
+
+If service has db, define and init db (example can be shown in off_exchange → enclave → enclave.cpp). 
+
+destroy()
+
+handle_client(int, int, void, int)
+
+on_graceful_shutdown()
+
+An example of an interface function - unregisterPartner:
+
+GUARD_CONTEXT_WITH_GRANT verifies access token (sessionContext) and specific grant.
+
+Define related constants: 
+
+DB_NAME
+
+DB_KEY - in debug, can be copied. Otherwise, should be randomised (32 randomised Bytes).
+
+DB_KEY_FILENAME
+
+DB_KEY_LEN
+
+Create service handler → <ServiceName>Handler
+
+Create service factory → <ServiceName>Factory
+
+When using GUARD_CONTEXT_WITH_GRANT, add grant role to grants.txt
+
+add anclave.cpp to Enclave_Cpp_Files in the service's Makefile
+
+
+enclave.cpp
+untrusted → 
+
+main.cpp → perform basic logic. load enclave, call init, start scheduler etc. looks similar in most services.
+
+Add relevant <SERVICE_NAME>_PORT define and <SERVICE_NAME>_SERVER_NAME in rpc → service-ports.h 
+
+
+main.cpp
+
+service-ports.h
+service.config → compiled into the enclave (static). Can be configured per each env. (service.<env_name>.config).
+
+
+service.config
+Makefile → change the following:
+
+App_Cpp_Files 
+
+Enclave_Cpp_File → should not be like $(wildcard enclave/*.cpp) ← it may add unwanted objects. 
+
+Enclave_Link_Flags → link all necessary libraries.
+
+
+Makefile
+If service have db, create new db dir with dummy db → <service_name> → db → db_0001.sql
+
+
+db_0001.sql
+After first successful built. Service binary will be added. Add it to .gitignore (should not be pushed)
+
+If an RPC is created and used is enclave.cpp, add new files in the enclave dir and add its RPC there:
+
+<ServiceName>RPCServer.cpp
+
+<ServiceName>RPCServer.h
+
+Add the cpp file to ENCLAVE_CPP_FILES in the service's Makefile
+
+Tests - python infrastructure is preferred.
+
+py-tests → the new service is needed to be added in the following:
+
+docker-compose-local.yml
+
+docker-compose-ci-test.yml
+
+docker-compose-ci-py-test.yml
+
+Makefile
+
+fast_make.py → 
+
+SERVICES - add new service to this const.
+
+SERVICES_WITH_GENERATED_FILES - add new service to this const.
+
+SERVICES_WITH_DB_MIGRATION → if new service has ad db, add new service to this const. Each service has sql files under db dir. a script (create_db_migration.py in the Makefile) compile those file to .h files. then all_sql.h (which includes all the .h files) file is linked.
+
+framework
+
+core-test → 
+
+framework → 
+
+internals → 
+
+docker-compose-py-test.yml 
+
+cert → <service_name> → copy cert.pem and key.pem 
+
+thrift → mock_services.thrift → add new service to services
+
+api → 
+
+api.py → add get_<service_name>_client to clients
+
+thrift_clients_factory.py → add service to SERVICE_NAME_TO_CLIENT_MAPSERVICE_NAME_TO_CLIENT_MAP
+
+thrift_py → 
+
+__init__.py → <service_name>_types, <ServiceName>Client to __all__
+
+thrift_types → add <ServiceName>.Iface
+
+utils → 
+
+core_services.py → add <SERVICE_NAME> to service_list
+
+ports.py → add <SERVICE_NAME> to PORTS
+
+thrift_server.py → 
+
+add <ServiceName>IF to name_to_module_map
+
+add <ServiceName>Mock class
+
+
+docker-compose-env.yml
+
+docker-compose-local.yml
+
+docker-compose-ci-test.yml
+
+docker-compose-ci-py-test.yml
+
+Makefile
+
+fast_make.py
+
+ docker-compose-py-test.yml 
+
+cert.pem and key.pem
+
+mock_services.thrift
+
+api.py
+
+thrift_clients_factory.py
+
+thrift_py/__init__.py 
+
+thrift_types
+
+core_services.py
+
+ports.py
+
+thrift_server.py 
+
+Add service tests reference in .gitlab-ci.yml
+
+Add service name to - TEST_DIRS:  list
+Before going deploying to Dev/Prod the following must be updated
+
+
+build_prod.sh
+
+add this line: cp <service_name>/service.${env}.config <service_name>/service.config
+
+add following file to service folder (copy from another service and remove unused env. variables):
+
+service.dev<1-10>.config, dev.prod.config
+
+Overriding keys and certs - add service name to SERVICES (in the for loop for changing keys and certs)
+
+override_bnym_ssl_keys.sh
+
+override_ssl_keys.sh
+This is a full commit of a new service for reference.

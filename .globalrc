@@ -7,7 +7,7 @@ native:\
 # See gtags(1).
 #---------------------------------------------------------------------
 common:\
-	:skip=*.bak,*~,#*#,*.swp,*.tmp,*_flymake.*,*_flymake,*.o,*.a,*.so,*.lo,*.zip,*.gz,*.bz2,*.xz,*.lzh,*.Z,*.tgz,*.min.js,*min.css,*.xml,*.pem,*.edl,*.lds,*.sql:
+	:skip=*.bak,*~,#*#,*.swp,*.tmp,*_flymake.*,*_flymake,*.o,*.a,*.so,*.lo,*.zip,*.gz,*.bz2,*.xz,*.lzh,*.Z,*.tgz,*.min.js,*min.css,*.xml,*.pem,*.edl,*.lds:
 gtags:\
 	:tc=common:\
 	:tc=builtin-parser:
